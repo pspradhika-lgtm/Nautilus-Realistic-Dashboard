@@ -10,7 +10,7 @@ from folium.plugins import MarkerCluster
 # -------------------------------
 # Title & Config
 # -------------------------------
-st.set_page_config(page_title="🌊 Nautilus Realistic Dashboard", layout="wide")
+st.set_page_config(page_title="🌊 Nautilus Dashboard", layout="wide")
 st.title("🚢 Nautilus Maritime Incidents – Interactive Dashboard")
 
 # -------------------------------
@@ -62,7 +62,7 @@ c4.metric("Countries Involved", filtered["Country"].nunique())
 # -------------------------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗺 Map", "📅 Timeline", "🔗 Sankey",
-    "🕸 Radar Chart", "🌐 Bubble Map"
+    "🕸 Radar Chart", "📊 Advanced Charts"
 ])
 
 # 1. Folium Interactive Map
@@ -119,17 +119,16 @@ with tab3:
     else:
         st.warning("No data for selected filters.")
 
-# 4. Radar Chart
+# 4. Radar Chart (Severity-focused)
 with tab4:
-    st.subheader("🕸 Top 5 Countries Comparison")
+    st.subheader("🕸 Country Severity Comparison (Radar)")
     if not filtered.empty:
         top_countries = filtered["Country"].value_counts().nlargest(5).index
         radar_data = filtered[filtered["Country"].isin(top_countries)].groupby("Country").agg({
             "Casualties":"sum",
-            "Cargo_Loss_Flag":"sum",
-            "Incident_Type":"count"
+            "Cargo_Loss_Flag":"sum"
         }).reset_index()
-        categories = ["Casualties","Cargo_Loss_Flag","Incident_Type"]
+        categories = ["Casualties","Cargo_Loss_Flag"]
         fig = go.Figure()
         for _, row in radar_data.iterrows():
             fig.add_trace(go.Scatterpolar(
@@ -143,11 +142,45 @@ with tab4:
     else:
         st.warning("No data for selected filters.")
 
-# 5. Interactive Bubble Map
+# 5. Advanced Charts (TreeMap, Dual Axis, Funnel, Bubble Map)
 with tab5:
-    st.subheader("🌐 Incident Bubble Map (Casualties & Cargo Loss)")
+    st.subheader("📊 Specialized & Interactive Visualizations")
     if not filtered.empty:
-        fig = px.scatter_geo(
+        # ---- TreeMap: Incident Type -> Vessel Type ----
+        treemap_data = filtered.groupby(["Incident_Type","Vessel_Type"]).size().reset_index(name="Count")
+        fig_treemap = px.treemap(
+            treemap_data,
+            path=["Incident_Type","Vessel_Type"],
+            values="Count",
+            color="Count",
+            color_continuous_scale="Viridis",
+            title="TreeMap: Incidents by Type & Vessel"
+        )
+        st.plotly_chart(fig_treemap, use_container_width=True)
+
+        # ---- Dual Axis Chart: Casualties & Cargo Loss over Years ----
+        dual_data = filtered.groupby("Year").agg({
+            "Casualties":"sum",
+            "Cargo_Loss_Flag":"sum"
+        }).reset_index()
+        fig_dual = go.Figure()
+        fig_dual.add_trace(go.Bar(x=dual_data["Year"], y=dual_data["Casualties"], name="Casualties", marker_color="red"))
+        fig_dual.add_trace(go.Line(x=dual_data["Year"], y=dual_data["Cargo_Loss_Flag"], name="Cargo Loss Events", marker_color="blue", yaxis="y2"))
+        fig_dual.update_layout(
+            title="Dual Axis: Casualties vs Cargo Loss Events per Year",
+            yaxis=dict(title="Casualties"),
+            yaxis2=dict(title="Cargo Loss Events", overlaying="y", side="right")
+        )
+        st.plotly_chart(fig_dual, use_container_width=True)
+
+        # ---- Funnel Chart: Incident Severity ----
+        funnel_data = filtered["Severity"].value_counts().reindex(["High","Medium","Low"]).reset_index()
+        funnel_data.columns = ["Severity","Count"]
+        fig_funnel = px.funnel(funnel_data, x="Count", y="Severity", title="Funnel: Incident Severity Distribution")
+        st.plotly_chart(fig_funnel, use_container_width=True)
+
+        # ---- Bubble Map: Casualties & Cargo Loss ----
+        fig_bubble = px.scatter_geo(
             filtered,
             lat="Latitude",
             lon="Longitude",
@@ -160,8 +193,8 @@ with tab5:
             title="Global Maritime Incidents: Casualties & Cargo Loss",
             size_max=25
         )
-        fig.update_layout(legend_title_text='Severity / Cargo Loss')
-        st.plotly_chart(fig, use_container_width=True)
+        fig_bubble.update_layout(legend_title_text='Severity / Cargo Loss')
+        st.plotly_chart(fig_bubble, use_container_width=True)
+
     else:
         st.warning("No data for selected filters.")
-
