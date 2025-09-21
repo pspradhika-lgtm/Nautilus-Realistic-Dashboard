@@ -144,12 +144,19 @@ with tab4:
         st.warning("No data for selected filters.")
 
 # 5. Heatmap
+# 5. Heatmap
 with tab5:
     st.subheader("🔥 Incident Heatmap")
     if not filtered.empty:
-        m2 = folium.Map(location=[20,0], zoom_start=2)
+        # Drop rows with missing coordinates
         heat_data = filtered[["Latitude","Longitude"]].dropna().values.tolist()
-        HeatMap(heat_data).add_to(m2)
-        st_folium(m2, width=800, height=500)
+        if heat_data:  # Only create heatmap if there is data
+            m2 = folium.Map(location=[20,0], zoom_start=2)
+            HeatMap(heat_data, radius=8, blur=4).add_to(m2)
+            st_folium(m2, width=800, height=500)
+        else:
+            st.warning("No valid coordinates to show HeatMap.")
     else:
         st.warning("No data for selected filters.")
+
+
