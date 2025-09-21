@@ -126,24 +126,39 @@ with tab3:
 
 # 4. Radar Chart
 with tab4:
-    st.subheader("🕸 Country Severity Comparison (Radar)")
+    st.subheader("🕸 Country Comparison (Radar)")
     if not filtered.empty:
+        # Select top 5 countries by number of incidents
         top_countries = filtered["Country"].value_counts().nlargest(5).index
+        
         radar_data = filtered[filtered["Country"].isin(top_countries)].groupby("Country").agg({
-            "Casualties":"sum",
-            "Cargo_Loss_Flag":"sum"
+            "Casualties": "sum",
+            "Cargo_Loss_Flag": "sum",
+            "Incident_Type": "count"
         }).reset_index()
-        categories = ["Casualties","Cargo_Loss_Flag"]
+        
+        categories = ["Casualties", "Cargo_Loss_Flag", "Incident_Type"]
+        
         fig = go.Figure()
         for _, row in radar_data.iterrows():
+            # Scale small values for visibility
+            scaled_values = row[categories].values * 1.0  # you can multiply if needed
             fig.add_trace(go.Scatterpolar(
-                r=row[categories].values,
+                r=scaled_values,
                 theta=categories,
-                fill="toself",
+                fill='toself',
                 name=row["Country"]
             ))
-        fig.update_layout(polar=dict(radialaxis=dict(visible=True)), showlegend=True)
+        
+        fig.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, radar_data[categories].values.max()*1.2])),
+            showlegend=True,
+            title="Country Comparison by Casualties, Cargo Loss, and Incidents"
+        )
         st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No data for selected filters.")
+
 
 # 5. Advanced Charts (Sunburst, Bubble, Funnel)
 with tab5:
@@ -200,3 +215,4 @@ with tab6:
         ).reset_index()
         fig_line = px.line(month_casualties, x="Month_Name", y="Casualties", markers=True, title="Total Casualties per Month")
         st.plotly_chart(fig_line, use_container_width=True)
+
