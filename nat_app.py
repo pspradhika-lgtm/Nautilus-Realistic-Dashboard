@@ -18,7 +18,7 @@ st.title("🚢 Nautilus Maritime Incidents – Interactive Dashboard")
 # -------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("maritime_incidents_realistic.csv")
+    df = pd.read_csv("maritime_incidentsrr.csv")
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["Year"] = df["Date"].dt.year
     df["Month"] = df["Date"].dt.month
@@ -243,6 +243,7 @@ with tab6:
         ).reset_index()
         fig_line = px.line(month_casualties, x="Month_Name", y="Casualties", markers=True, title="Total Casualties per Month")
         st.plotly_chart(fig_line, use_container_width=True)
+
 
 
 
