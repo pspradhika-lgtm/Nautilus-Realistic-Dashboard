@@ -93,7 +93,7 @@ with tab1:
 
 # 2. Animated / Interactive Scatter Timeline
 with tab2:
-    st.subheader("🎥 Animated Scatter: All Incident Types Monthly")
+    st.subheader("🎥 Animated Scatter: Monthly Incidents with All Incident Types")
     if not filtered.empty:
         # Convert Month number to names
         month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
@@ -103,44 +103,34 @@ with tab2:
         # Create Year-Month frame
         filtered["Year_Month"] = filtered["Year"].astype(str) + "-" + filtered["Month_Name"].astype(str)
 
-        # Ensure all incident types appear in every frame
-        all_frames = []
-        for ym in filtered["Year_Month"].unique():
-            temp = filtered[filtered["Year_Month"]==ym]
-            for incident in filtered["Incident_Type"].unique():
-                if incident not in temp["Incident_Type"].values:
-                    # Add a dummy row for missing incident with size 0
-                    dummy = {
-                        "Longitude": 0, "Latitude": 0, "Casualties": 0,
-                        "Country": "", "Vessel_Type": "", "Cargo_Loss": "",
-                        "Incident_Type": incident, "Year_Month": ym
-                    }
-                    temp = pd.concat([temp, pd.DataFrame([dummy])], ignore_index=True)
-            all_frames.append(temp)
-        
-        filtered_complete = pd.concat(all_frames, ignore_index=True)
-        
-        # Animated scatter
+        # Animated scatter plot
         fig_scatter = px.scatter(
-            filtered_complete,
+            filtered,
             x="Longitude",
             y="Latitude",
             color="Incident_Type",
             size="Casualties",
             hover_name="Country",
-            hover_data=["Vessel_Type", "Cargo_Loss"],
+            hover_data=["Incident_Type", "Vessel_Type", "Casualties", "Cargo_Loss", "Year", "Month_Name"],
             animation_frame="Year_Month",
             animation_group="Incident_Type",
-            title="Animated Incidents by Location (Monthly, All Incident Types)",
-            size_max=30,
+            title="Animated Incidents by Location (Monthly)",
+            size_max=25,
             width=900,
             height=600
         )
+        
+        # Ensure legend shows all incident types even if not present in some frames
+        fig_scatter.for_each_trace(lambda t: t.update(showlegend=True))
+        
+        # Layout tweaks
         fig_scatter.update_layout(
             clickmode='event+select',
             xaxis_title="Longitude",
-            yaxis_title="Latitude"
+            yaxis_title="Latitude",
+            legend_title="Incident Type"
         )
+        
         st.plotly_chart(fig_scatter, use_container_width=True)
     else:
         st.warning("No data for selected filters.")
@@ -253,6 +243,7 @@ with tab6:
         ).reset_index()
         fig_line = px.line(month_casualties, x="Month_Name", y="Casualties", markers=True, title="Total Casualties per Month")
         st.plotly_chart(fig_line, use_container_width=True)
+
 
 
 
