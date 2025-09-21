@@ -36,12 +36,14 @@ data = load_data()
 # -------------------------------
 st.sidebar.header("🔍 Filters")
 years = st.sidebar.multiselect("Select Year(s):", sorted(data["Year"].dropna().unique()))
+months = st.sidebar.multiselect("Select Month(s):", sorted(data["Month"].dropna().unique()))
 countries = st.sidebar.multiselect("Select Country:", sorted(data["Country"].dropna().unique()))
 vessels = st.sidebar.multiselect("Select Vessel Type:", sorted(data["Vessel_Type"].dropna().unique()))
 incidents = st.sidebar.multiselect("Select Incident Type:", sorted(data["Incident_Type"].dropna().unique()))
 
 filtered = data.copy()
 if years: filtered = filtered[filtered["Year"].isin(years)]
+if months: filtered = filtered[filtered["Month"].isin(months)]
 if countries: filtered = filtered[filtered["Country"].isin(countries)]
 if vessels: filtered = filtered[filtered["Vessel_Type"].isin(vessels)]
 if incidents: filtered = filtered[filtered["Incident_Type"].isin(incidents)]
@@ -60,9 +62,9 @@ c4.metric("Countries Involved", filtered["Country"].nunique())
 # -------------------------------
 # Tabs for Interactive Visuals
 # -------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🗺 Map", "📅 Timeline", "🔗 Sankey",
-    "🕸 Radar Chart", "📊 Advanced Charts"
+    "🕸 Country Radar", "📊 Advanced Charts", "📈 Monthly Analysis"
 ])
 
 # 1. Folium Interactive Map
@@ -109,7 +111,6 @@ with tab3:
         label = sources + targets
         source_idx = [sources.index(i) for i in sankey_data["Incident_Type"]]
         target_idx = [targets.index(v)+len(sources) for v in sankey_data["Vessel_Type"]]
-
         fig = go.Figure(go.Sankey(
             node=dict(label=label, pad=15, thickness=20),
             link=dict(source=source_idx, target=target_idx, value=sankey_data["Count"])
@@ -119,7 +120,7 @@ with tab3:
     else:
         st.warning("No data for selected filters.")
 
-# 4. Radar Chart (Severity-focused)
+# 4. Radar Chart (Top Countries)
 with tab4:
     st.subheader("🕸 Country Severity Comparison (Radar)")
     if not filtered.empty:
@@ -146,55 +147,54 @@ with tab4:
 with tab5:
     st.subheader("📊 Specialized & Interactive Visualizations")
     if not filtered.empty:
-        # ---- TreeMap: Incident Type -> Vessel Type ----
+        # TreeMap
         treemap_data = filtered.groupby(["Incident_Type","Vessel_Type"]).size().reset_index(name="Count")
-        fig_treemap = px.treemap(
-            treemap_data,
-            path=["Incident_Type","Vessel_Type"],
-            values="Count",
-            color="Count",
-            color_continuous_scale="Viridis",
-            title="TreeMap: Incidents by Type & Vessel"
-        )
+        fig_treemap = px.treemap(treemap_data, path=["Incident_Type","Vessel_Type"], values="Count",
+                                 color="Count", color_continuous_scale="Viridis", title="TreeMap: Incidents by Type & Vessel")
         st.plotly_chart(fig_treemap, use_container_width=True)
 
-        # ---- Dual Axis Chart: Casualties & Cargo Loss over Years ----
-        dual_data = filtered.groupby("Year").agg({
-            "Casualties":"sum",
-            "Cargo_Loss_Flag":"sum"
-        }).reset_index()
+        # Dual Axis Chart: Casualties vs Cargo Loss per Year
+        dual_data = filtered.groupby("Year").agg({"Casualties":"sum","Cargo_Loss_Flag":"sum"}).reset_index()
         fig_dual = go.Figure()
         fig_dual.add_trace(go.Bar(x=dual_data["Year"], y=dual_data["Casualties"], name="Casualties", marker_color="red"))
-        fig_dual.add_trace(go.Line(x=dual_data["Year"], y=dual_data["Cargo_Loss_Flag"], name="Cargo Loss Events", marker_color="blue", yaxis="y2"))
-        fig_dual.update_layout(
-            title="Dual Axis: Casualties vs Cargo Loss Events per Year",
-            yaxis=dict(title="Casualties"),
-            yaxis2=dict(title="Cargo Loss Events", overlaying="y", side="right")
-        )
+        fig_dual.add_trace(go.Line(x=dual_data["Year"], y=dual_data["Cargo_Loss_Flag"], name="Cargo Loss Events",
+                                   marker_color="blue", yaxis="y2"))
+        fig_dual.update_layout(title="Dual Axis: Casualties vs Cargo Loss per Year",
+                               yaxis=dict(title="Casualties"),
+                               yaxis2=dict(title="Cargo Loss Events", overlaying="y", side="right"))
         st.plotly_chart(fig_dual, use_container_width=True)
 
-        # ---- Funnel Chart: Incident Severity ----
+        # Funnel Chart: Severity
         funnel_data = filtered["Severity"].value_counts().reindex(["High","Medium","Low"]).reset_index()
         funnel_data.columns = ["Severity","Count"]
         fig_funnel = px.funnel(funnel_data, x="Count", y="Severity", title="Funnel: Incident Severity Distribution")
         st.plotly_chart(fig_funnel, use_container_width=True)
 
-        # ---- Bubble Map: Casualties & Cargo Loss ----
-        fig_bubble = px.scatter_geo(
-            filtered,
-            lat="Latitude",
-            lon="Longitude",
-            color="Severity",
-            size="Casualties",
-            hover_name="Country",
-            hover_data={"Vessel_Type":True, "Incident_Type":True, "Cargo_Loss":True, "Latitude":False, "Longitude":False},
-            symbol="Cargo_Loss",
-            projection="natural earth",
-            title="Global Maritime Incidents: Casualties & Cargo Loss",
-            size_max=25
-        )
+        # Bubble Map: Casualties & Cargo Loss
+        fig_bubble = px.scatter_geo(filtered, lat="Latitude", lon="Longitude", color="Severity",
+                                    size="Casualties", hover_name="Country",
+                                    hover_data={"Vessel_Type":True, "Incident_Type":True, "Cargo_Loss":True},
+                                    symbol="Cargo_Loss", projection="natural earth",
+                                    title="Global Maritime Incidents: Casualties & Cargo Loss",
+                                    size_max=25)
         fig_bubble.update_layout(legend_title_text='Severity / Cargo Loss')
         st.plotly_chart(fig_bubble, use_container_width=True)
+    else:
+        st.warning("No data for selected filters.")
 
+# 6. Month-Wise Analysis
+with tab6:
+    st.subheader("📈 Monthly Analysis")
+    if not filtered.empty:
+        # Bar Chart: Incidents per Month
+        month_count = filtered.groupby("Month").size().reset_index(name="Count")
+        fig_bar = px.bar(month_count, x="Month", y="Count", title="Incidents per Month", text="Count")
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+        # Line Chart: Casualties per Month
+        month_casualties = filtered.groupby("Month")["Casualties"].sum().reset_index()
+        fig_line = px.line(month_casualties, x="Month", y="Casualties", markers=True,
+                           title="Total Casualties per Month")
+        st.plotly_chart(fig_line, use_container_width=True)
     else:
         st.warning("No data for selected filters.")
