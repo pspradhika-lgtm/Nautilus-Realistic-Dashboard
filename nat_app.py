@@ -3,15 +3,15 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import folium
-from folium.plugins import MarkerCluster, HeatMap
 from streamlit_folium import st_folium
+import folium
+from folium.plugins import MarkerCluster
 
 # -------------------------------
 # Title & Config
 # -------------------------------
 st.set_page_config(page_title="🌊 Nautilus Realistic Dashboard", layout="wide")
-st.title("🚢 Nautilus Maritime Incidents – Realistic Interactive Dashboard")
+st.title("🚢 Nautilus Maritime Incidents – Interactive Dashboard")
 
 # -------------------------------
 # Load Data
@@ -62,7 +62,7 @@ c4.metric("Countries Involved", filtered["Country"].nunique())
 # -------------------------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗺 Map", "📅 Timeline", "🔗 Sankey",
-    "🕸 Radar Chart", "🔥 Heatmap"
+    "🕸 Radar Chart", "🌐 Bubble Map"
 ])
 
 # 1. Folium Interactive Map
@@ -143,20 +143,25 @@ with tab4:
     else:
         st.warning("No data for selected filters.")
 
-# 5. Heatmap
-# 5. Heatmap
+# 5. Interactive Bubble Map
 with tab5:
-    st.subheader("🔥 Incident Heatmap")
+    st.subheader("🌐 Incident Bubble Map (Casualties & Cargo Loss)")
     if not filtered.empty:
-        # Drop rows with missing coordinates
-        heat_data = filtered[["Latitude","Longitude"]].dropna().values.tolist()
-        if heat_data:  # Only create heatmap if there is data
-            m2 = folium.Map(location=[20,0], zoom_start=2)
-            HeatMap(heat_data, radius=8, blur=4).add_to(m2)
-            st_folium(m2, width=800, height=500)
-        else:
-            st.warning("No valid coordinates to show HeatMap.")
+        fig = px.scatter_geo(
+            filtered,
+            lat="Latitude",
+            lon="Longitude",
+            color="Severity",
+            size="Casualties",
+            hover_name="Country",
+            hover_data={"Vessel_Type":True, "Incident_Type":True, "Cargo_Loss":True, "Latitude":False, "Longitude":False},
+            symbol="Cargo_Loss",
+            projection="natural earth",
+            title="Global Maritime Incidents: Casualties & Cargo Loss",
+            size_max=25
+        )
+        fig.update_layout(legend_title_text='Severity / Cargo Loss')
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No data for selected filters.")
-
 
