@@ -93,9 +93,16 @@ with tab1:
 
 # 2. Animated / Interactive Scatter Timeline
 with tab2:
-    st.subheader("🎥 Animated Scatter Timeline: Incidents Over Years")
+    st.subheader("🎥 Animated Scatter Timeline: Incidents Over Months")
     if not filtered.empty:
-        # Animated scatter plot
+        # Ensure Month_Name is sorted correctly for animation
+        month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        filtered["Month_Name"] = pd.Categorical(filtered["Month_Name"], categories=month_order, ordered=True)
+        
+        # Create a combined frame: Year-Month
+        filtered["Year_Month"] = filtered["Year"].astype(str) + "-" + filtered["Month_Name"].astype(str)
+        
+        # Animated scatter
         fig_scatter = px.scatter(
             filtered,
             x="Longitude",
@@ -103,10 +110,10 @@ with tab2:
             color="Incident_Type",
             size="Casualties",
             hover_name="Country",
-            hover_data=["Vessel_Type", "Cargo_Loss"],
-            animation_frame="Year",  # Animate by Year
+            hover_data=["Vessel_Type","Cargo_Loss","Year","Month_Name"],
+            animation_frame="Year_Month",  # Animate by Year-Month
             animation_group="Incident_Type",
-            title="Animated Incidents by Location Over Years",
+            title="Animated Incidents by Location Over Months",
             size_max=30,
             width=900,
             height=600
@@ -119,6 +126,7 @@ with tab2:
         st.plotly_chart(fig_scatter, use_container_width=True)
     else:
         st.warning("No data for selected filters.")
+
 
 
 # 3. Sankey Diagram
@@ -229,5 +237,6 @@ with tab6:
         ).reset_index()
         fig_line = px.line(month_casualties, x="Month_Name", y="Casualties", markers=True, title="Total Casualties per Month")
         st.plotly_chart(fig_line, use_container_width=True)
+
 
 
