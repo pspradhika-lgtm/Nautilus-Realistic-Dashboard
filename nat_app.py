@@ -93,19 +93,33 @@ with tab1:
 
 # 2. Animated / Interactive Scatter Timeline
 with tab2:
-    st.subheader("📅 Interactive Scatter: Incidents")
+    st.subheader("🎥 Animated Scatter Timeline: Incidents Over Years")
     if not filtered.empty:
+        # Animated scatter plot
         fig_scatter = px.scatter(
             filtered,
-            x="Longitude", y="Latitude",
+            x="Longitude",
+            y="Latitude",
             color="Incident_Type",
             size="Casualties",
             hover_name="Country",
-            hover_data=["Vessel_Type","Cargo_Loss"],
-            title="Click & Hover: Incidents by Location"
+            hover_data=["Vessel_Type", "Cargo_Loss"],
+            animation_frame="Year",  # Animate by Year
+            animation_group="Incident_Type",
+            title="Animated Incidents by Location Over Years",
+            size_max=30,
+            width=900,
+            height=600
         )
-        fig_scatter.update_layout(clickmode='event+select')
+        fig_scatter.update_layout(
+            clickmode='event+select',
+            xaxis_title="Longitude",
+            yaxis_title="Latitude"
+        )
         st.plotly_chart(fig_scatter, use_container_width=True)
+    else:
+        st.warning("No data for selected filters.")
+
 
 # 3. Sankey Diagram
 with tab3:
@@ -215,4 +229,5 @@ with tab6:
         ).reset_index()
         fig_line = px.line(month_casualties, x="Month_Name", y="Casualties", markers=True, title="Total Casualties per Month")
         st.plotly_chart(fig_line, use_container_width=True)
+
 
